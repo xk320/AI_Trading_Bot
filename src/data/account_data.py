@@ -3,6 +3,7 @@
 负责获取账户信息
 """
 from typing import Dict, Any, Optional
+from src.utils.logger import log_warning, log_success, log_error
 
 
 class AccountDataManager:
@@ -35,7 +36,7 @@ class AccountDataManager:
         try:
             account = self.client.get_account()
             if not account:
-                print(f"⚠️ 获取账户信息为空")
+                log_warning("获取账户信息为空")
                 return None
             
             # 调试：打印账户信息的键（已禁用）
@@ -50,7 +51,7 @@ class AccountDataManager:
                     val = account.get(key, 0)
                     if val and float(val) > 0:
                         total_balance = float(val)
-                        print(f"✅ 使用备用字段 {key} = {total_balance}")
+                        log_success(f"使用备用字段 {key} = {total_balance}")
                         break
             
             return {
@@ -64,7 +65,7 @@ class AccountDataManager:
                 'raw_account': account  # 保存原始数据用于调试
             }
         except Exception as e:
-            print(f"⚠️ 获取账户摘要失败: {e}")
+            log_error(f"获取账户摘要失败: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -78,7 +79,8 @@ class AccountDataManager:
             
             used_margin = float(account.get('totalInitialMargin', 0))
             return (used_margin / total_balance) * 100
-        except:
+        except Exception as e:
+            log_error(f"计算保证金率失败: {e}")
             return 0.0
     
     def get_available_balance(self) -> float:

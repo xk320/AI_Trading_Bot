@@ -6,6 +6,7 @@ import time
 from typing import Dict, Any, Optional
 from src.api.binance_client import BinanceClient
 from src.utils.decorators import retry_on_failure, log_execution
+from src.utils.logger import log_warning, log_success, log_error
 
 
 class TradeExecutor:
@@ -48,7 +49,7 @@ class TradeExecutor:
                 self.client.change_leverage(symbol, leverage)
                 time.sleep(0.5)  # 等待杠杆调整生效
             except Exception as e:
-                print(f"⚠️ 调整杠杆失败（继续开仓）: {e}")
+                log_warning(f"调整杠杆失败（继续开仓）: {e}")
         
         # 开仓
         try:
@@ -58,7 +59,7 @@ class TradeExecutor:
                 quantity=quantity
             )
             
-            print(f"✅ 开多仓成功: {symbol} {quantity}")
+            log_success(f"开多仓成功: {symbol} {quantity}")
             
             # 设置止盈止损
             if take_profit or stop_loss:
@@ -68,7 +69,7 @@ class TradeExecutor:
             
             return order
         except Exception as e:
-            print(f"❌ 开多仓失败: {e}")
+            log_error(f"开多仓失败: {e}")
             raise
     
     @log_execution
@@ -91,7 +92,7 @@ class TradeExecutor:
                 self.client.change_leverage(symbol, leverage)
                 time.sleep(0.5)
             except Exception as e:
-                print(f"⚠️ 调整杠杆失败（继续开仓）: {e}")
+                log_warning(f"调整杠杆失败（继续开仓）: {e}")
         
         # 开仓
         try:
@@ -101,7 +102,7 @@ class TradeExecutor:
                 quantity=quantity
             )
             
-            print(f"✅ 开空仓成功: {symbol} {quantity}")
+            log_success(f"开空仓成功: {symbol} {quantity}")
             
             # 设置止盈止损
             if take_profit or stop_loss:
@@ -111,7 +112,7 @@ class TradeExecutor:
             
             return order
         except Exception as e:
-            print(f"❌ 开空仓失败: {e}")
+            log_error(f"开空仓失败: {e}")
             raise
     
     # ==================== 平仓 ====================
@@ -127,19 +128,29 @@ class TradeExecutor:
         try:
             # 获取当前持仓
             position = self.client.get_position(symbol)
-            if not position or float(position['positionAmt']) == 0:
-                print(f"⚠️ {symbol} 无持仓")
+            if not position:
+                log_warning(f"{symbol} 无持仓")
                 return None
             
-            # 确定平仓方向（与持仓相反）
-            amount = abs(float(position['positionAmt']))
-            side = 'SELL' if position['positionAmt'][0] != '-' else 'BUY'
+            # 安全获取持仓数量
+            try:
+                position_amt = float(position.get('positionAmt', 0))
+            except (ValueError, TypeError) as e:
+                log_error(f"获取持仓数量失败 {symbol}: {e}")
+                return None
+            
+            if position_amt == 0:
+                log_warning(f"{symbol} 无持仓")
+                return None
+            amount = abs(position_amt)
+            # 正数=多仓，平仓需要SELL；负数=空仓，平仓需要BUY
+            side = 'SELL' if position_amt > 0 else 'BUY'
             
             # 撤销所有挂单
             try:
                 self.client.cancel_all_orders(symbol)
-            except:
-                pass
+            except Exception as e:
+                log_warning(f"撤销挂单失败: {e}")
             
             # 平仓
             order = self.client.create_market_order(
@@ -148,11 +159,11 @@ class TradeExecutor:
                 quantity=amount
             )
             
-            print(f"✅ 平仓成功: {symbol} {side} {amount}")
+            log_success(f"平仓成功: {symbol} {side} {amount}")
             return order
             
         except Exception as e:
-            print(f"❌ 平仓失败 {symbol}: {e}")
+            log_error(f"平仓失败 {symbol}: {e}")
             raise
     
     def close_position_partial(self, symbol: str, percentage: float) -> Dict[str, Any]:
@@ -168,15 +179,25 @@ class TradeExecutor:
         
         try:
             position = self.client.get_position(symbol)
-            if not position or float(position['positionAmt']) == 0:
-                print(f"⚠️ {symbol} 无持仓")
+            if not position:
+                log_warning(f"{symbol} 无持仓")
                 return None
             
-            total_amount = abs(float(position['positionAmt']))
-            close_amount = total_amount * percentage
+            # 安全获取持仓数量
+            try:
+                position_amt = float(position.get('positionAmt', 0))
+            except (ValueError, TypeError) as e:
+                log_error(f"获取持仓数量失败 {symbol}: {e}")
+                return None
             
-            # 确定平仓方向
-            side = 'SELL' if position['positionAmt'][0] != '-' else 'BUY'
+            if position_amt == 0:
+                log_warning(f"{symbol} 无持仓")
+                return None
+            
+            total_amount = abs(position_amt)
+            close_amount = total_amount * percentage
+            # 正数=多仓，平仓需要SELL；负数=空仓，平仓需要BUY
+            side = 'SELL' if position_amt > 0 else 'BUY'
             
             order = self.client.create_market_order(
                 symbol=symbol,
@@ -184,11 +205,11 @@ class TradeExecutor:
                 quantity=close_amount
             )
             
-            print(f"✅ 部分平仓成功: {symbol} {close_amount} ({percentage*100}%)")
+            log_success(f"部分平仓成功: {symbol} {close_amount} ({percentage*100}%)")
             return order
             
         except Exception as e:
-            print(f"❌ 部分平仓失败 {symbol}: {e}")
+            log_error(f"部分平仓失败 {symbol}: {e}")
             raise
     
     def force_close_position(self, symbol: str, reason: str) -> Dict[str, Any]:
@@ -199,7 +220,7 @@ class TradeExecutor:
             symbol: 交易对
             reason: 强制平仓原因
         """
-        print(f"🚨 强制平仓: {symbol}, 原因: {reason}")
+        log_error(f"🚨 强制平仓: {symbol}, 原因: {reason}")
         return self.close_position(symbol)
     
     # ==================== 止盈止损 ====================
@@ -217,9 +238,9 @@ class TradeExecutor:
             )
             
             if take_profit:
-                print(f"   📈 止盈价: ${take_profit:.2f}")
+                log_success(f"   📈 止盈价: ${take_profit:.2f}")
             if stop_loss:
-                print(f"   🛑 止损价: ${stop_loss:.2f}")
+                log_success(f"   🛑 止损价: ${stop_loss:.2f}")
                 
         except Exception as e:
-            print(f"⚠️ 设置止盈止损失败: {e}")
+            log_warning(f"设置止盈止损失败: {e}")

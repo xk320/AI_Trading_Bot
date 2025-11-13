@@ -9,6 +9,7 @@ import requests
 from typing import Optional, Dict, Any
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
+from src.utils.logger import log_success, log_error, log_warning
 
 
 class BinanceClient:
@@ -39,10 +40,10 @@ class BinanceClient:
                 api_secret=self.api_secret,
                 requests_params={'timeout': timeout}
             )
-            print(f"🔗 连接到币安正式网 (U本位合约)")
-            print(f"✅ 已连接到币安正式网")
+            log_success("🔗 连接到币安正式网 (U本位合约)")
+            log_success("已连接到币安正式网")
         except Exception as e:
-            print(f"❌ 初始化Binance客户端失败: {e}")
+            log_error(f"初始化Binance客户端失败: {e}")
             raise
     
     def _coin_margin_request(self, method: str, endpoint: str, params: dict = None, signed: bool = True) -> dict:
@@ -87,7 +88,7 @@ class BinanceClient:
             return response.json()
             
         except Exception as e:
-            print(f"⚠️ 币本位合约API请求失败: {e}")
+            log_warning(f"币本位合约API请求失败: {e}")
             raise
     
     # ==================== 市场数据 ====================
@@ -109,7 +110,7 @@ class BinanceClient:
             klines = self.client.futures_klines(symbol=symbol, interval=interval, limit=limit)
             return klines
         except BinanceAPIException as e:
-            print(f"⚠️ 获取K线失败 {symbol} {interval}: {e}")
+            log_warning(f"获取K线失败 {symbol} {interval}: {e}")
             return []
     
     def get_ticker(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -130,7 +131,7 @@ class BinanceClient:
             ticker = self.client.futures_ticker(symbol=symbol)
             return ticker
         except BinanceAPIException as e:
-            print(f"⚠️ 获取行情失败 {symbol}: {e}")
+            log_warning(f"获取行情失败 {symbol}: {e}")
             return None
     
     def get_funding_rate(self, symbol: str) -> Optional[float]:
@@ -146,7 +147,7 @@ class BinanceClient:
                 return float(data[0].get('rate', 0)) if 'rate' in data[0] else None
             return None
         except (BinanceAPIException, KeyError, TypeError, ValueError) as e:
-            print(f"⚠️ 获取资金费率失败 {symbol}: {e}")
+            log_warning(f"获取资金费率失败 {symbol}: {e}")
             return None
     
     def get_open_interest(self, symbol: str) -> Optional[float]:
@@ -155,7 +156,7 @@ class BinanceClient:
             data = self.client.futures_open_interest(symbol=symbol)
             return float(data['openInterest']) if data else None
         except BinanceAPIException as e:
-            print(f"⚠️ 获取持仓量失败 {symbol}: {e}")
+            log_warning(f"获取持仓量失败 {symbol}: {e}")
             return None
     
     # ==================== 账户和持仓数据 ====================
@@ -177,7 +178,7 @@ class BinanceClient:
             account = self.client.futures_account()
             return account
         except BinanceAPIException as e:
-            print(f"⚠️ 获取账户信息失败: {e}")
+            log_warning(f"获取账户信息失败: {e}")
             return None
     
     def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -206,7 +207,7 @@ class BinanceClient:
                     return pos
             return None
         except BinanceAPIException as e:
-            print(f"⚠️ 获取持仓失败 {symbol}: {e}")
+            log_warning(f"获取持仓失败 {symbol}: {e}")
             return None
     
     def get_all_positions(self) -> list:
@@ -219,7 +220,7 @@ class BinanceClient:
             active_positions = [pos for pos in positions if float(pos['positionAmt']) != 0]
             return active_positions
         except BinanceAPIException as e:
-            print(f"⚠️ 获取所有持仓失败: {e}")
+            log_warning(f"获取所有持仓失败: {e}")
             return []
     
     # ==================== 交易操作 ====================
@@ -248,7 +249,7 @@ class BinanceClient:
             )
             return order
         except BinanceAPIException as e:
-            print(f"⚠️ 创建订单失败 {symbol} {side} {quantity}: {e}")
+            log_error(f"创建订单失败 {symbol} {side} {quantity}: {e}")
             raise
     
     def create_limit_order(self, symbol: str, side: str, quantity: float, 
@@ -278,7 +279,7 @@ class BinanceClient:
             )
             return order
         except BinanceAPIException as e:
-            print(f"⚠️ 创建限价单失败 {symbol} {side} {quantity} @ {price}: {e}")
+            log_error(f"创建限价单失败 {symbol} {side} {quantity} @ {price}: {e}")
             raise
     
     def cancel_order(self, symbol: str, order_id: int) -> Dict[str, Any]:
@@ -287,7 +288,7 @@ class BinanceClient:
             result = self.client.futures_cancel_order(symbol=symbol, orderId=order_id)
             return result
         except BinanceAPIException as e:
-            print(f"⚠️ 撤销订单失败 {symbol} {order_id}: {e}")
+            log_warning(f"撤销订单失败 {symbol} {order_id}: {e}")
             raise
     
     def cancel_all_orders(self, symbol: str) -> Dict[str, Any]:
@@ -296,7 +297,7 @@ class BinanceClient:
             result = self.client.futures_cancel_all_open_orders(symbol=symbol)
             return result
         except BinanceAPIException as e:
-            print(f"⚠️ 撤销所有订单失败 {symbol}: {e}")
+            log_warning(f"撤销所有订单失败 {symbol}: {e}")
             raise
     
     # ==================== 仓位管理 ====================
@@ -316,7 +317,7 @@ class BinanceClient:
             result = self.client.futures_change_leverage(symbol=symbol, leverage=leverage)
             return result
         except BinanceAPIException as e:
-            print(f"⚠️ 修改杠杆失败 {symbol} {leverage}x: {e}")
+            log_error(f"修改杠杆失败 {symbol} {leverage}x: {e}")
             raise
     
     def change_margin_type(self, symbol: str, margin_type: str = 'ISOLATED') -> Dict[str, Any]:
@@ -331,7 +332,7 @@ class BinanceClient:
             result = self.client.futures_change_margin_type(symbol=symbol, marginType=margin_type)
             return result
         except BinanceAPIException as e:
-            print(f"⚠️ 修改保证金类型失败 {symbol} {margin_type}: {e}")
+            log_error(f"修改保证金类型失败 {symbol} {margin_type}: {e}")
             raise
     
     def set_hedge_mode(self, enabled: bool = True):
@@ -348,7 +349,7 @@ class BinanceClient:
                 result = self.client.futures_change_position_mode(dualSidePosition='false')
             return result
         except BinanceAPIException as e:
-            print(f"⚠️ 设置持仓模式失败: {e}")
+            log_error(f"设置持仓模式失败: {e}")
             raise
     
     # ==================== 止盈止损 ====================
@@ -399,7 +400,7 @@ class BinanceClient:
             return orders
             
         except BinanceAPIException as e:
-            print(f"⚠️ 设置止盈止损失败 {symbol}: {e}")
+            log_error(f"设置止盈止损失败 {symbol}: {e}")
             raise
     
     # ==================== 查询订单 ====================
@@ -410,7 +411,7 @@ class BinanceClient:
             order = self.client.futures_get_order(symbol=symbol, orderId=order_id)
             return order
         except BinanceAPIException as e:
-            print(f"⚠️ 查询订单失败 {symbol} {order_id}: {e}")
+            log_warning(f"查询订单失败 {symbol} {order_id}: {e}")
             return None
     
     def get_open_orders(self, symbol: str = None) -> list:
@@ -422,7 +423,7 @@ class BinanceClient:
                 orders = self.client.futures_get_all_orders()
             return orders
         except BinanceAPIException as e:
-            print(f"⚠️ 获取挂单失败: {e}")
+            log_warning(f"获取挂单失败: {e}")
             return []
     
     # ==================== 工具方法 ====================
@@ -433,7 +434,7 @@ class BinanceClient:
             time = self.client.futures_time()
             return time
         except BinanceAPIException as e:
-            print(f"⚠️ 获取服务器时间失败: {e}")
+            log_warning(f"获取服务器时间失败: {e}")
             return None
     
     def test_connection(self) -> bool:
@@ -442,5 +443,5 @@ class BinanceClient:
             self.get_server_time()
             return True
         except Exception as e:
-            print(f"⚠️ 连接测试失败: {e}")
+            log_error(f"连接测试失败: {e}")
             return False

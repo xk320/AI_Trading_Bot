@@ -1,8 +1,9 @@
 """
 持仓数据管理器
-负责获取和管理持仓信息
+负责获取和管理当前持仓信息
 """
 from typing import Dict, Any, Optional
+from src.utils.logger import log_error
 
 
 class PositionDataManager:
@@ -39,16 +40,21 @@ class PositionDataManager:
             if not position:
                 return None
             
-            # 解析持仓数据
-            amount = float(position['positionAmt'])
+            # 安全解析持仓数据
+            try:
+                amount = float(position.get('positionAmt', 0))
+                entry_price = float(position.get('entryPrice', 0))
+                mark_price = float(position.get('markPrice', 0))
+                leverage = int(position.get('leverage', 1))
+                unrealized_pnl = float(position.get('unRealizedProfit', 0))
+            except (ValueError, TypeError) as e:
+                log_error(f"解析持仓数据失败 {symbol}: {e}")
+                return None
+            
             if amount == 0:
                 return None
             
             side = 'LONG' if amount > 0 else 'SHORT'
-            entry_price = float(position['entryPrice'])
-            mark_price = float(position['markPrice'])
-            leverage = int(position['leverage'])
-            unrealized_pnl = float(position['unRealizedProfit'])
             
             # 计算盈亏百分比
             if entry_price > 0:
@@ -94,14 +100,17 @@ class PositionDataManager:
             result = {}
             
             for pos in positions:
-                symbol = pos['symbol']
-                amount = float(pos['positionAmt'])
+                symbol = pos.get('symbol', '')
+                try:
+                    amount = float(pos.get('positionAmt', 0))
+                except (ValueError, TypeError):
+                    continue
                 if amount != 0:
                     result[symbol] = self.get_current_position(symbol)
             
             return result
         except Exception as e:
-            print(f"⚠️ 获取所有持仓失败: {e}")
+            log_error(f"获取所有持仓失败: {e}")
             return {}
     
     def has_position(self, symbol: str) -> bool:

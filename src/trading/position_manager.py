@@ -4,6 +4,7 @@
 """
 from typing import Dict, Any, Optional
 from src.api.binance_client import BinanceClient
+from src.utils.logger import log_success, log_error
 
 
 class PositionManager:
@@ -28,10 +29,10 @@ class PositionManager:
         """
         try:
             result = self.client.change_leverage(symbol, leverage)
-            print(f"✅ 修改杠杆: {symbol} {leverage}x")
+            log_success(f"修改杠杆: {symbol} {leverage}x")
             return result
         except Exception as e:
-            print(f"❌ 修改杠杆失败 {symbol} {leverage}x: {e}")
+            log_error(f"修改杠杆失败 {symbol} {leverage}x: {e}")
             raise
     
     def set_position_mode(self, hedge_mode: bool = True):
@@ -43,10 +44,10 @@ class PositionManager:
         """
         try:
             result = self.client.set_hedge_mode(hedge_mode)
-            print(f"✅ 设置持仓模式: {'双向持仓' if hedge_mode else '单向持仓'}")
+            log_success(f"设置持仓模式: {'双向持仓' if hedge_mode else '单向持仓'}")
             return result
         except Exception as e:
-            print(f"❌ 设置持仓模式失败: {e}")
+            log_error(f"设置持仓模式失败: {e}")
             raise
     
     def set_margin_type(self, symbol: str, margin_type: str = 'ISOLATED'):
@@ -59,10 +60,10 @@ class PositionManager:
         """
         try:
             result = self.client.change_margin_type(symbol, margin_type)
-            print(f"✅ 设置保证金类型: {symbol} {margin_type}")
+            log_success(f"设置保证金类型: {symbol} {margin_type}")
             return result
         except Exception as e:
-            print(f"❌ 设置保证金类型失败 {symbol}: {e}")
+            log_error(f"设置保证金类型失败 {symbol}: {e}")
             raise
     
     def get_position_info(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -84,6 +85,15 @@ class PositionManager:
             
         Returns:
             所需保证金
+            
+        Raises:
+            ValueError: 当杠杆倍数无效时
         """
+        if leverage <= 0:
+            raise ValueError(f"杠杆倍数必须大于0，当前值: {leverage}")
+        
+        if leverage > 100:
+            raise ValueError(f"杠杆倍数不能超过100，当前值: {leverage}")
+        
         position_value = quantity * price
-        return position_value / leverage if leverage > 0 else position_value
+        return position_value / leverage

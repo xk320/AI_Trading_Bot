@@ -4,6 +4,7 @@ RSI, MACD, EMA, ATR等
 """
 import pandas as pd
 import numpy as np
+from src.utils.logger import log_error
 from typing import Optional
 
 
@@ -30,7 +31,8 @@ def calculate_rsi(prices: pd.Series, period: int = 14) -> Optional[float]:
         rsi = 100 - (100 / (1 + rs))
         
         return float(rsi.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算RSI失败: {e}")
         return None
 
 
@@ -57,7 +59,8 @@ def calculate_macd(prices: pd.Series, fast: int = 12, slow: int = 26,
         histogram = macd_line - signal_line
         
         return float(macd_line.iloc[-1]), float(signal_line.iloc[-1]), float(histogram.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算MACD失败: {e}")
         return None, None, None
 
 
@@ -78,7 +81,8 @@ def calculate_ema(prices: pd.Series, period: int) -> Optional[float]:
     try:
         ema = prices.ewm(span=period, adjust=False).mean()
         return float(ema.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算EMA失败: {e}")
         return None
 
 
@@ -108,7 +112,8 @@ def calculate_atr(high: pd.Series, low: pd.Series, close: pd.Series,
         atr = tr.rolling(window=period).mean()
         
         return float(atr.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算ATR失败: {e}")
         return None
 
 
@@ -119,8 +124,8 @@ def calculate_volume_ratio(current_volume: float, avg_volume: float) -> float:
     Returns:
         当前成交量相对于平均成交量的百分比
     """
-    if avg_volume == 0:
-        return 0.0
+    if avg_volume == 0 or avg_volume is None:
+        return 100.0  # 默认返回100%
     return (current_volume / avg_volume) * 100
 
 
@@ -131,7 +136,7 @@ def calculate_change_percent(current: float, previous: float) -> float:
     Returns:
         涨跌百分比
     """
-    if previous == 0:
+    if previous == 0 or previous is None:
         return 0.0
     return ((current - previous) / previous) * 100
 
@@ -153,7 +158,8 @@ def calculate_sma(prices: pd.Series, period: int) -> Optional[float]:
     try:
         sma = prices.rolling(window=period).mean()
         return float(sma.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算SMA失败: {e}")
         return None
 
 
@@ -181,5 +187,6 @@ def calculate_bollinger_bands(prices: pd.Series, period: int = 20,
         lower = sma - (std * num_std)
         
         return float(sma.iloc[-1]), float(upper.iloc[-1]), float(lower.iloc[-1])
-    except:
+    except Exception as e:
+        log_error(f"计算布林带失败: {e}")
         return None, None, None

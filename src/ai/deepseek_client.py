@@ -7,6 +7,7 @@ import json
 from typing import Dict, Any, Optional
 import warnings
 from openai import OpenAI
+from src.utils.logger import log_ai, log_error
 
 
 class DeepSeekClient:
@@ -78,9 +79,8 @@ class DeepSeekClient:
             
             # 打印推理过程（如果有）
             if reasoning_content:
-                print("\n🧠 AI推理过程:")
-                print(reasoning_content)
-                print()
+                log_ai("🧠 AI推理过程:")
+                log_ai(reasoning_content)
             
             return {
                 'reasoning_content': reasoning_content,
@@ -94,7 +94,7 @@ class DeepSeekClient:
             }
             
         except Exception as e:
-            print(f"❌ DeepSeek API调用失败: {e}")
+            log_error(f"DeepSeek API调用失败: {e}")
             raise
     
     def get_reasoning(self, response: Dict[str, Any]) -> str:

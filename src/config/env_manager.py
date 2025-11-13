@@ -5,6 +5,7 @@
 import os
 from typing import Tuple, Optional
 from dotenv import load_dotenv
+from src.utils.logger import log_warning
 
 
 class EnvManager:
@@ -25,7 +26,7 @@ class EnvManager:
             load_dotenv(file_path)
             return True
         else:
-            print(f"⚠️ 环境变量文件不存在: {file_path}")
+            log_warning(f"环境变量文件不存在: {file_path}")
             return False
     
     @staticmethod

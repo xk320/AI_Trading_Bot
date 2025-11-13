@@ -4,7 +4,9 @@
 """
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Union
+from src.utils.confidence_converter import convert_confidence_to_float
+from src.utils.logger import log_warning, log_error
 
 
 class DecisionParser:
@@ -173,28 +175,20 @@ class DecisionParser:
             for symbol, decision in all_decisions.items():
                 if isinstance(decision, dict):
                     # 特殊处理 confidence：如果是字符串，转换为数字
-                    if 'confidence' in decision and isinstance(decision['confidence'], str):
-                        conf_str = decision['confidence'].upper()
-                        if conf_str == 'HIGH':
-                            decision['confidence'] = 0.8
-                        elif conf_str == 'MEDIUM':
-                            decision['confidence'] = 0.6
-                        elif conf_str == 'LOW':
-                            decision['confidence'] = 0.4
-                        else:
-                            decision['confidence'] = 0.5
+                    if 'confidence' in decision:
+                        decision['confidence'] = convert_confidence_to_float(decision['confidence'])
                     
                     all_decisions[symbol] = DecisionParser.apply_defaults(decision)
             
             return all_decisions
             
         except json.JSONDecodeError as e:
-            print(f"⚠️ 多币种JSON解析失败: {e}")
-            print(f"原始响应: {response}")
+            log_warning(f"多币种JSON解析失败: {e}")
+            log_warning(f"原始响应: {response}")
             # 返回空字典，表示所有币种都HOLD
             return {}
         except Exception as e:
-            print(f"⚠️ 解析多币种决策时出错: {e}")
+            log_error(f"解析多币种决策时出错: {e}")
             import traceback
             traceback.print_exc()
             return {}

@@ -12,6 +12,7 @@ from src.utils.indicators import (
     calculate_atr, calculate_volume_ratio,
     calculate_sma, calculate_bollinger_bands
 )
+from src.utils.logger import log_warning
 
 
 class MarketDataManager:
@@ -76,7 +77,7 @@ class MarketDataManager:
                 }
                 
             except Exception as e:
-                print(f"⚠️ 获取{interval}周期数据失败 {symbol}: {e}")
+                log_warning(f"获取{interval}周期数据失败 {symbol}: {e}")
                 continue
         
         return result
@@ -104,35 +105,36 @@ class MarketDataManager:
         
         # RSI
         rsi = calculate_rsi(close, period=14)
-        indicators['rsi'] = rsi
+        indicators['rsi'] = rsi if rsi is not None else 50.0  # 默认中性值
         
         # MACD
         macd, signal, histogram = calculate_macd(close)
-        indicators['macd'] = macd
-        indicators['macd_signal'] = signal
-        indicators['macd_histogram'] = histogram
+        indicators['macd'] = macd if macd is not None else 0.0
+        indicators['macd_signal'] = signal if signal is not None else 0.0
+        indicators['macd_histogram'] = histogram if histogram is not None else 0.0
         
         # EMA (确保有足够的数据)
         ema_20 = calculate_ema(close, period=20) if len(close) >= 20 else None
         ema_50 = calculate_ema(close, period=50) if len(close) >= 50 else None
-        indicators['ema_20'] = ema_20 if ema_20 is not None else 0
-        indicators['ema_50'] = ema_50 if ema_50 is not None else 0
+        current_price = float(close.iloc[-1]) if len(close) > 0 else 0.0
+        indicators['ema_20'] = ema_20 if ema_20 is not None else current_price
+        indicators['ema_50'] = ema_50 if ema_50 is not None else current_price
         
         # SMA
         sma_20 = calculate_sma(close, period=20) if len(close) >= 20 else None
         sma_50 = calculate_sma(close, period=50) if len(close) >= 50 else None
-        indicators['sma_20'] = sma_20 if sma_20 is not None else 0
-        indicators['sma_50'] = sma_50 if sma_50 is not None else 0
+        indicators['sma_20'] = sma_20 if sma_20 is not None else current_price
+        indicators['sma_50'] = sma_50 if sma_50 is not None else current_price
         
         # 布林带
         bb_middle, bb_upper, bb_lower = calculate_bollinger_bands(close, period=20, num_std=2.0)
-        indicators['bollinger_middle'] = bb_middle if bb_middle is not None else 0
-        indicators['bollinger_upper'] = bb_upper if bb_upper is not None else 0
-        indicators['bollinger_lower'] = bb_lower if bb_lower is not None else 0
+        indicators['bollinger_middle'] = bb_middle if bb_middle is not None else current_price
+        indicators['bollinger_upper'] = bb_upper if bb_upper is not None else current_price * 1.02
+        indicators['bollinger_lower'] = bb_lower if bb_lower is not None else current_price * 0.98
         
         # ATR
         atr = calculate_atr(high, low, close, period=14)
-        indicators['atr_14'] = atr
+        indicators['atr_14'] = atr if atr is not None else current_price * 0.02  # 默认2%波动率
         
         # Volume
         if len(volume) >= 20:
@@ -182,7 +184,7 @@ class MarketDataManager:
                 'open_interest': open_interest if open_interest else 0.0
             }
         except Exception as e:
-            print(f"⚠️ 获取实时市场数据失败 {symbol}: {e}")
+            log_warning(f"获取实时市场数据失败 {symbol}: {e}")
             return None
     
     def format_market_data_for_ai(self, symbol: str, market_data: Dict[str, Any], 
